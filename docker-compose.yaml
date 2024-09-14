@@ -1,0 +1,59 @@
+version: '3.9'
+
+services:
+  main-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: keplerix
+    ports:
+      - "8000:8000"
+    command: >
+      /bin/sh -c "alembic upgrade head && uvicorn --factory api.main:create_app --reload --host 0.0.0.0 --port 8000"
+    env_file:
+      - ./.env
+    volumes:
+      - ./app/:/app/
+      - ./alembic.ini:/app/alembic.ini
+    depends_on:
+      - db
+    networks:
+      - postgres
+
+  db:
+    image: postgres:13
+    container_name: keplerix-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 1234
+      POSTGRES_DB: keplerix_test
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    networks:
+      - postgres
+    restart: unless-stopped
+  
+  pgadmin:
+    container_name: pgadmin_container
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-pgadmin4@pgadmin.org}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-admin}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin:/var/lib/pgadmin
+    ports:
+      - "${PGADMIN_PORT:-5050}:80"
+    networks:
+      - postgres
+    restart: unless-stopped
+
+networks:
+  postgres:
+    driver: bridge
+
+volumes:
+  postgres:
+  pgadmin:
