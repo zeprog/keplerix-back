@@ -1,7 +1,8 @@
+from typing import Optional
 from pydantic import BaseModel, EmailStr
 
 class UserCreate(BaseModel):
-  username: str
+  username: Optional[str] = None
   email: str
   password: str
 
@@ -23,3 +24,14 @@ class ResetPasswordRequest(BaseModel):
 class VerifyAccRequest(BaseModel):
   email: str
   token: str
+
+class UserInfo(BaseModel):
+  email: str
+  username: str
+  is_active: bool
+  is_superuser: bool
+  is_verified: bool
+
+class UserInfoForUpdate(BaseModel):
+  email: Optional[str] = None
+  username: Optional[str] = None
