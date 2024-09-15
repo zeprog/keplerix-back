@@ -1,6 +1,5 @@
 from datetime import datetime, timezone
 from sqlalchemy import Table, Column, Integer, String, Boolean, MetaData, TIMESTAMP
-from fastapi_users.db import SQLAlchemyBaseUserTable
 from sqlalchemy.orm import DeclarativeBase
 
 metadata = MetaData()
@@ -24,10 +23,11 @@ users = Table(
 class Base(DeclarativeBase):
   pass
 
-class Users(SQLAlchemyBaseUserTable[int], Base):
+class Users(Base):
   __tablename__ = "users"
+  
   id = Column(Integer, primary_key=True, autoincrement=True)
-  username = Column(String(length=256), unique=True)
+  username = Column(String(length=256), nullable=False)
   email = Column(String(length=320), unique=True, index=True, nullable=False)
   hashed_password = Column(String(length=1024), nullable=False)
   is_active = Column(Boolean, default=True)
