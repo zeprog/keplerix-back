@@ -12,10 +12,14 @@ class UserLogin(BaseModel):
 class UserLogout(BaseModel):
   email: str
 
-class ForgotPasswordRequest(BaseModel):
+class ForgotPasswordAndVerifyAccRequest(BaseModel):
   email: EmailStr
 
 class ResetPasswordRequest(BaseModel):
   email: str
   token: str
   new_password: str
+
+class VerifyAccRequest(BaseModel):
+  email: str
+  token: str
