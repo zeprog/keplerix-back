@@ -1,14 +1,25 @@
-from fastapi_users.authentication import CookieTransport, AuthenticationBackend
-from fastapi_users.authentication import JWTStrategy
+import jwt
+from datetime import datetime, timedelta, timezone
+from typing import Dict
 from core.config import settings
+from core.redis import redis_client
 
-cookie_transport = CookieTransport(cookie_name="keplerix", cookie_max_age=3600)
+async def create_access_token(email: str, data: Dict[str, str], expires_delta: timedelta = timedelta(minutes=15)) -> str:
+  to_encode = data.copy()
+  expire = datetime.now(timezone.utc) + expires_delta
+  to_encode.update({"exp": expire})
+  encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
-def get_jwt_strategy() -> JWTStrategy:
-  return JWTStrategy(secret=settings.SECRET_KEY, lifetime_seconds=3600)
+  await redis_client.set(email, encoded_jwt, ex=expires_delta)
+  
+  return encoded_jwt
 
-auth_backend = AuthenticationBackend(
-  name="jwt",
-  transport=cookie_transport,
-  get_strategy=get_jwt_strategy,
-)
+def verify_access_token(email: str) -> Dict[str, str]:
+  token = redis_client.get(email)
+  if token:
+    try:
+      payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+      return payload
+    except jwt.PyJWTError:
+      return {}
+  return {}

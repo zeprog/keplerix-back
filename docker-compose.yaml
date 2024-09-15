@@ -17,8 +17,9 @@ services:
       - ./alembic.ini:/app/alembic.ini
     depends_on:
       - db
+      - redis
     networks:
-      - postgres
+      - backend
 
   db:
     image: postgres:13
@@ -32,7 +33,7 @@ services:
     volumes:
       - postgres:/var/lib/postgresql/data
     networks:
-      - postgres
+      - backend
     restart: unless-stopped
   
   pgadmin:
@@ -47,13 +48,25 @@ services:
     ports:
       - "${PGADMIN_PORT:-5050}:80"
     networks:
-      - postgres
+      - backend
+    restart: unless-stopped
+
+  redis:
+    image: "redis:alpine"
+    container_name: redis_container
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - backend
     restart: unless-stopped
 
 networks:
-  postgres:
+  backend:
     driver: bridge
 
 volumes:
   postgres:
   pgadmin:
+  redis_data:
