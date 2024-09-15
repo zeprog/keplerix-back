@@ -4,13 +4,23 @@ from typing import Dict
 from core.config import settings
 from core.redis import redis_client
 
-async def create_access_token(email: str, data: Dict[str, str], expires_delta: timedelta = timedelta(minutes=15)) -> str:
+async def create_access_token(email: str, data: Dict[str, str], expires_delta: timedelta = timedelta(minutes=60)) -> str:
   to_encode = data.copy()
   expire = datetime.now(timezone.utc) + expires_delta
   to_encode.update({"exp": expire})
   encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
   await redis_client.set(email, encoded_jwt, ex=expires_delta)
+  
+  return encoded_jwt
+
+async def create_refresh_token(email: str, expires_delta: timedelta = timedelta(days=90)) -> str:
+  to_encode = {"sub": email}
+  expire = datetime.now(timezone.utc) + expires_delta
+  to_encode.update({"exp": expire})
+  encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
+  
+  await redis_client.set(f"refresh_token:{email}", encoded_jwt, ex=expires_delta)
   
   return encoded_jwt
 
