@@ -7,7 +7,7 @@ from db.base import Base, metadata
 now = datetime.now(timezone.utc)
 
 def generate_unique_link():
-    return str(uuid.uuid4()) 
+  return str(uuid.uuid4()) 
 
 projects = Table(
   "projects",

@@ -20,24 +20,24 @@ users = Table(
 )
 
 class Users(Base):
-    __tablename__ = "users"
-    
-    id = Column(Integer, primary_key=True, autoincrement=True)
-    username = Column(String(length=256), nullable=False)
-    email = Column(String(length=320), unique=True, index=True, nullable=False)
-    hashed_password = Column(String(length=1024), nullable=False)
-    is_active = Column(Boolean, default=True)
-    is_superuser = Column(Boolean, default=False)
-    is_verified = Column(Boolean, default=False)
-    created_at = Column(TIMESTAMP(timezone=True), default=datetime.now(timezone.utc))
+  __tablename__ = "users"
+  
+  id = Column(Integer, primary_key=True, autoincrement=True)
+  username = Column(String(length=256), nullable=False)
+  email = Column(String(length=320), unique=True, index=True, nullable=False)
+  hashed_password = Column(String(length=1024), nullable=False)
+  is_active = Column(Boolean, default=True)
+  is_superuser = Column(Boolean, default=False)
+  is_verified = Column(Boolean, default=False)
+  created_at = Column(TIMESTAMP(timezone=True), default=datetime.now(timezone.utc))
 
-    projects = relationship("Project", back_populates="owner")
+  projects = relationship("Project", back_populates="owner")
 
-    async def get_projects_count(self, session: AsyncSession) -> int:
-        result = await session.execute(
-            select(func.count().label('count'))
-            .select_from(Project)
-            .where(Project.user_id == self.id)
-        )
-        count = result.scalar()
-        return count
+  async def get_projects_count(self, session: AsyncSession) -> int:
+    result = await session.execute(
+      select(func.count().label('count'))
+      .select_from(Project)
+      .where(Project.user_id == self.id)
+    )
+    count = result.scalar()
+    return count

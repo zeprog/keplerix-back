@@ -36,7 +36,6 @@ async def get_account_info(request: Request, session: AsyncSession = Depends(get
     if not db_user:
       raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # Получите количество проектов через асинхронный метод
     projects_count = await db_user.get_projects_count(session)
 
     return UserInfo(
@@ -86,3 +85,39 @@ async def update_account_info(
   await session.commit()
 
   return {"message": "User information updated successfully"}
+
+@router.delete('/delete_user', tags=["User"])
+async def delete_user(
+  request: Request, 
+  session: AsyncSession = Depends(get_async_session)
+):
+  token_cookie_data = request.cookies.get("keplerix_token")
+  if not token_cookie_data:
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+  try:
+    payload = jwt.decode(token_cookie_data, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+    email = payload.get("sub")
+    if not email:
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
+
+    redis_key = f"{email}"
+    token_redis_data = await redis_client.get(redis_key)
+
+    if token_cookie_data != token_redis_data:
+      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
+  except Exception:
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+  result = await session.execute(select(Users).where(Users.email == email))
+  db_user = result.scalars().first()
+
+  if not db_user:
+    raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+  await session.delete(db_user)
+  await session.commit()
+
+  await redis_client.delete(redis_key)
+
+  return {"message": "User account deleted successfully"}
