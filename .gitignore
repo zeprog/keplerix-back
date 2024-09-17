@@ -3,4 +3,5 @@
 /alembic/
 __pycache__
 .env
+.env.test
 poetry.lock

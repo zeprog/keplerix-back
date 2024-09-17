@@ -36,7 +36,7 @@ async def verify_access_token(email: str) -> Dict[str, str]:
 
 async def generate_reset_password_token(email: str) -> str:
   reset_token_data = {"sub": email}
-  reset_token = create_access_token(data=reset_token_data, expires_delta=timedelta(hours=1))
+  reset_token = create_access_token(email, data=reset_token_data, expires_delta=timedelta(hours=1))
   redis_key = f"reset_password:{email}"
   await redis_client.set(redis_key, reset_token, ex=3600)
 
