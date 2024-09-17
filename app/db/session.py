@@ -1,7 +1,6 @@
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine, AsyncSession
 from core.config import settings
-from db.models.user import Users
 
 DATABASE_URL = settings.DATABASE_URL_ASYNC
 

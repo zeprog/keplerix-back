@@ -31,6 +31,7 @@ class UserInfo(BaseModel):
   is_active: bool
   is_superuser: bool
   is_verified: bool
+  projects_count: int
 
 class UserInfoForUpdate(BaseModel):
   email: Optional[EmailStr] = None

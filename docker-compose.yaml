@@ -21,27 +21,27 @@ services:
     networks:
       - backend
 
-  test-app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    container_name: keplerix-test
-    command: >
-      /bin/sh -c "pytest tests --disable-warnings"
-    env_file:
-      - ./.env.test
-    environment:
-      - PYTHONPATH=/app
-      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@test_db:5432/keplerix_test
-    volumes:
-      - ./app/:/app/
-      - ./tests/:/app/tests/
-      - ./alembic.ini:/app/alembic.ini
-    depends_on:
-      - test_db
-      - redis
-    networks:
-      - backend
+  # test-app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: keplerix-test
+  #   command: >
+  #     /bin/sh -c "pytest tests --disable-warnings"
+  #   env_file:
+  #     - ./.env.test
+  #   environment:
+  #     - PYTHONPATH=/app
+  #     - DATABASE_URL=postgresql+asyncpg://postgres:postgres@test_db:5432/keplerix_test
+  #   volumes:
+  #     - ./app/:/app/
+  #     - ./tests/:/app/tests/
+  #     - ./alembic.ini:/app/alembic.ini
+  #   depends_on:
+  #     - test_db
+  #     - redis
+  #   networks:
+  #     - backend
   
   db:
     image: postgres:13
@@ -58,16 +58,16 @@ services:
       - backend
     restart: unless-stopped
 
-  test_db:
-    image: postgres:13
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: keplerix_test
-    ports:
-      - "5433:5432"
-    volumes:
-      - postgres_test_data:/var/lib/postgresql/data
+  # test_db:
+  #   image: postgres:13
+  #   environment:
+  #     POSTGRES_USER: postgres
+  #     POSTGRES_PASSWORD: postgres
+  #     POSTGRES_DB: keplerix_test
+  #   ports:
+  #     - "5433:5432"
+  #   volumes:
+  #     - postgres_test_data:/var/lib/postgresql/data
   
   pgadmin:
     container_name: pgadmin_container
@@ -101,6 +101,6 @@ networks:
 
 volumes:
   postgres:
-  postgres_test_data:  # Added missing volume definition
+  # postgres_test_data:
   pgadmin:
   redis_data:

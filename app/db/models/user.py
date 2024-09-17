@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from sqlalchemy import Table, Column, Integer, String, Boolean, TIMESTAMP, func, select
 from sqlalchemy.orm import relationship
-from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.ext.asyncio import AsyncSession
 from db.base import Base, metadata
 from db.models.project import Project
 
@@ -20,26 +20,24 @@ users = Table(
 )
 
 class Users(Base):
-  __tablename__ = "users"
-  
-  id = Column(Integer, primary_key=True, autoincrement=True)
-  username = Column(String(length=256), nullable=False)
-  email = Column(String(length=320), unique=True, index=True, nullable=False)
-  hashed_password = Column(String(length=1024), nullable=False)
-  projects_count = Column(Integer, default=0)
-  is_active = Column(Boolean, default=True)
-  is_superuser = Column(Boolean, default=False)
-  is_verified = Column(Boolean, default=False)
-  created_at = Column(TIMESTAMP(timezone=True), default=datetime.now(timezone.utc))
+    __tablename__ = "users"
+    
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    username = Column(String(length=256), nullable=False)
+    email = Column(String(length=320), unique=True, index=True, nullable=False)
+    hashed_password = Column(String(length=1024), nullable=False)
+    is_active = Column(Boolean, default=True)
+    is_superuser = Column(Boolean, default=False)
+    is_verified = Column(Boolean, default=False)
+    created_at = Column(TIMESTAMP(timezone=True), default=datetime.now(timezone.utc))
 
-  projects = relationship(Project)
+    projects = relationship("Project", back_populates="owner")
 
-  @hybrid_property
-  def projects_count(self):
-      return len(self.projects)
-
-  @projects_count.expression
-  def projects_count(cls):
-    return (select([func.count(Project.id)])
-            .where(Project.user_id == cls.id)
-            .label("projects_count"))
+    async def get_projects_count(self, session: AsyncSession) -> int:
+        result = await session.execute(
+            select(func.count().label('count'))
+            .select_from(Project)
+            .where(Project.user_id == self.id)
+        )
+        count = result.scalar()
+        return count

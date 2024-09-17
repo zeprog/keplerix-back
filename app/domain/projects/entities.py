@@ -16,3 +16,6 @@ class ProjectCreate(BaseModel):
   link: str
   changed_at: datetime
   created_at: datetime
+  
+class ProjectsDelete(BaseModel):
+  links: list[str]
