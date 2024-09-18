@@ -1,4 +1,5 @@
 import jwt
+from uuid import uuid4
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -10,6 +11,55 @@ from db.session import get_async_session
 from domain.projects.entities import ProjectResponse, ProjectsDelete
 
 router = APIRouter()
+
+@router.get('/project', response_model=ProjectResponse, tags=['Projects'])
+async def get_project(
+  project_link: str,
+  request: Request,
+  session: AsyncSession = Depends(get_async_session)
+):
+    token_cookie_data = request.cookies.get("keplerix_token")
+
+    if not token_cookie_data:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token missing in cookies")
+
+    try:
+        payload = jwt.decode(token_cookie_data, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email = payload.get("sub")
+        if not email:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
+
+        redis_key = f"{email}"
+        token_redis_data = await redis_client.get(redis_key)
+
+        if token_cookie_data != token_redis_data:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
+
+        result = await session.execute(select(Users).where(Users.email == email))
+        db_user = result.scalars().first()
+
+        if not db_user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+        result = await session.execute(select(DBProject).where(DBProject.link == project_link, DBProject.user_id == db_user.id))
+        project = result.scalars().first()
+
+        if not project:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+
+        return {
+            "link": project.link,
+            "owner": {
+                "id": db_user.id,
+                "email": db_user.email,
+                "username": db_user.username
+            },
+            "changed_at": project.changed_at.isoformat(),
+            "created_at": project.created_at.isoformat(),
+        }
+
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
 
 @router.get('/projects', response_model=list[ProjectResponse], tags=['Projects'])
 async def get_projects(request: Request, session: AsyncSession = Depends(get_async_session)):
@@ -30,14 +80,12 @@ async def get_projects(request: Request, session: AsyncSession = Depends(get_asy
     if token_cookie_data != token_redis_data:
       raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
 
-    # Fetch user details
     result = await session.execute(select(Users).where(Users.email == email))
     db_user = result.scalars().first()
 
     if not db_user:
       raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    # Fetch projects associated with the user
     result = await session.execute(select(DBProject).where(DBProject.user_id == db_user.id))
     projects = result.scalars().all()
 
@@ -54,55 +102,57 @@ async def get_projects(request: Request, session: AsyncSession = Depends(get_asy
 
   except jwt.PyJWTError:
     raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
-
+  
 @router.post('/add_project', response_model=ProjectResponse, tags=['Projects'])
-async def create_project(request: Request, session: AsyncSession = Depends(get_async_session)):
-  token_cookie_data = request.cookies.get("keplerix_token")
+async def create_project(
+    request: Request, 
+    session: AsyncSession = Depends(get_async_session)
+):
+    token_cookie_data = request.cookies.get("keplerix_token")
 
-  if not token_cookie_data:
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token missing in cookies")
+    if not token_cookie_data:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token missing in cookies")
 
-  try:
-    payload = jwt.decode(token_cookie_data, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-    email = payload.get("sub")
-    if not email:
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
+    try:
+        payload = jwt.decode(token_cookie_data, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email = payload.get("sub")
+        if not email:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
 
-    redis_key = f"{email}"
-    token_redis_data = await redis_client.get(redis_key)
+        redis_key = f"{email}"
+        token_redis_data = await redis_client.get(redis_key)
+        if token_cookie_data != token_redis_data:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
 
-    if token_cookie_data != token_redis_data:
-      raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
+        result = await session.execute(select(Users).where(Users.email == email))
+        db_user = result.scalars().first()
 
-    # Fetch user details
-    result = await session.execute(select(Users).where(Users.email == email))
-    db_user = result.scalars().first()
+        if not db_user:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
 
-    if not db_user:
-      raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+        new_project_link = f"{uuid4()}"
+        new_project = DBProject(
+            user_id=db_user.id,
+            link=new_project_link
+        )
 
-    # Create a new project, with link and timestamps handled automatically
-    new_project = DBProject(
-      user_id=db_user.id
-    )
+        session.add(new_project)
+        await session.commit()
+        await session.refresh(new_project)
 
-    session.add(new_project)
-    await session.commit()
-    await session.refresh(new_project)  # Ensure new_project has its ID and other properties set
+        return {
+            "link": new_project.link,
+            "owner": {
+                "id": db_user.id,
+                "email": db_user.email,
+                "username": db_user.username
+            },
+            "changed_at": new_project.changed_at.isoformat(),
+            "created_at": new_project.created_at.isoformat(),
+        }
 
-    return ProjectResponse(
-      link=new_project.link,
-      owner={
-        "id": db_user.id,
-        "email": db_user.email,
-        "username": db_user.username
-      },
-      changed_at=new_project.changed_at.isoformat(),
-      created_at=new_project.created_at.isoformat()
-    )
-
-  except jwt.PyJWTError:
-    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid access token")
   
 @router.delete('/delete_all_projects', tags=['Projects'])
 async def delete_all_projects(request: Request, session: AsyncSession = Depends(get_async_session)):
