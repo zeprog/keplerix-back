@@ -1,19 +1,56 @@
 version: '3.9'
 
 services:
-  main-app:
+  api-gateway:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: keplerix
+      dockerfile: ./gateway/Dockerfile
+    container_name: keplerix-api-gateway
     ports:
       - "8000:8000"
     command: >
-      /bin/sh -c "alembic upgrade head && uvicorn --factory api.main:create_app --reload --host 0.0.0.0 --port 8000"
+      /bin/sh -c "uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+    depends_on:
+      - user-service
+      - file-service
+    networks:
+      - backend
+
+  user-service:
+    build:
+      context: .
+      dockerfile: ./user-service/Dockerfile
+    container_name: keplerix-user-service
+    ports:
+      - "8001:8000"
+    command: >
+      /bin/sh -c "alembic upgrade head && uvicorn --factory main:create_app --reload --host 0.0.0.0 --port 8000"
     env_file:
       - ./.env
     volumes:
-      - ./app/:/app/
+      - ./user-service/:/app/
+      - ./migrations:/app/migrations
+      - ./alembic.ini:/app/alembic.ini
+    depends_on:
+      - db
+      - redis
+    networks:
+      - backend
+
+  file-service:
+    build:
+      context: .
+      dockerfile: ./file-service/Dockerfile
+    container_name: keplerix-file-service
+    ports:
+      - "8002:8000"
+    command: >
+      /bin/sh -c "alembic upgrade head && uvicorn --factory main:create_app --reload --host 0.0.0.0 --port 8000"
+    env_file:
+      - ./.env
+    volumes:
+      - ./file-service/:/app/
+      - ./migrations:/app/migrations
       - ./alembic.ini:/app/alembic.ini
     depends_on:
       - db
