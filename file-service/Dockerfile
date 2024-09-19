@@ -13,7 +13,8 @@ RUN apt update -y && \
     apt install -y python3-dev gcc musl-dev
 
 # Добавляем файл зависимостей
-ADD pyproject.toml /app
+COPY pyproject.toml /app/
+COPY poetry.lock /app/
 
 # Обновляем pip и устанавливаем poetry
 RUN pip install --upgrade pip

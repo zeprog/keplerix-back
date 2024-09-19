@@ -13,7 +13,8 @@ RUN apt update -y && \
     apt install -y python3-dev gcc musl-dev
 
 # Добавляем файл зависимостей
-ADD pyproject.toml /app
+COPY pyproject.toml /app/
+COPY poetry.lock /app/ 
 
 # Обновляем pip и устанавливаем poetry
 RUN pip install --upgrade pip
@@ -23,16 +24,13 @@ RUN pip install poetry
 RUN poetry config virtualenvs.create false
 RUN poetry install --no-root --no-interaction --no-ansi
 
-# Копируем скрипт ожидания сервисов
+# Копируем скрипт ожидания сервисов (если нужен)
 COPY wait-for-it.sh /wait-for-it.sh
 RUN chmod +x /wait-for-it.sh
 
 # Копируем файлы приложения
 COPY ./user-service /app/
 COPY ./migrations /app/migrations
-
-# Устанавливаем рабочую директорию
-WORKDIR /app
 
 # Выполняем миграции при запуске контейнера
 CMD ["alembic", "upgrade", "head"]
